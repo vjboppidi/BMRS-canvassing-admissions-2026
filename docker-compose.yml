@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bmrs
+      POSTGRES_PASSWORD: bmrs
+      POSTGRES_DB: bmrs_admissions
+    ports:
+      - "5432:5432"
+    volumes:
+      - bmrs_pgdata:/var/lib/postgresql/data
+
+volumes:
+  bmrs_pgdata:
