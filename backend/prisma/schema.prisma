@@ -1,0 +1,115 @@
+// Prisma schema for BMRS admissions canvassing
+// Tables: teachers, leads, reminders, highlights
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  ADMIN
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  ENROLLED
+  LOST
+}
+
+enum ReminderStatus {
+  PENDING
+  NOTIFIED
+  COMPLETED
+  CANCELLED
+}
+
+/// A teacher or an admin. We keep both in one table to simplify auth.
+/// `role` controls whether the user can see only their own leads (TEACHER)
+/// or all leads (ADMIN) via the web dashboard.
+model Teacher {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  phone        String?    @unique
+  name         String
+  passwordHash String
+  role         Role       @default(TEACHER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  leads        Lead[]
+  reminders    Reminder[]
+
+  @@map("teachers")
+}
+
+/// Lead captured by a teacher during canvassing.
+/// `id` is supplied by the client (so the mobile app can generate it offline
+/// and later upsert). `updatedAt` is used for last-write-wins conflict
+/// resolution during sync.
+model Lead {
+  id              String     @id @db.Uuid
+  teacherId       String     @db.Uuid
+  studentName     String
+  studentClass    String
+  currentSchool   String?
+  parentName      String
+  parentNumber    String
+  address         String?
+  location        String?
+  status          LeadStatus @default(NEW)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  teacher         Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  reminders       Reminder[]
+
+  @@index([teacherId])
+  @@index([studentClass])
+  @@index([location])
+  @@index([updatedAt])
+  @@map("leads")
+}
+
+/// Follow-up reminder attached to a lead.
+model Reminder {
+  id          String         @id @db.Uuid
+  leadId      String         @db.Uuid
+  teacherId   String         @db.Uuid
+  remindAt    DateTime
+  note        String?
+  status      ReminderStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  teacher     Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId])
+  @@index([leadId])
+  @@index([remindAt])
+  @@map("reminders")
+}
+
+/// Marketing content shown in the mobile app's School Highlights tab.
+model Highlight {
+  id        String   @id @default(uuid()) @db.Uuid
+  kind      String   // "photo" | "achievement" | "testimonial" | "video"
+  title     String
+  body      String?
+  mediaUrl  String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind])
+  @@index([order])
+  @@map("highlights")
+}

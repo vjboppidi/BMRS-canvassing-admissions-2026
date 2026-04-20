@@ -1,0 +1,33 @@
+import js from "@eslint/js";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import tsparser from "@typescript-eslint/parser";
+import globals from "globals";
+
+export default [
+  {
+    ignores: ["dist/**", "node_modules/**", "prisma/migrations/**", "coverage/**"],
+  },
+  js.configs.recommended,
+  {
+    files: ["src/**/*.ts", "tests/**/*.ts"],
+    languageOptions: {
+      parser: tsparser,
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.jest },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "no-unused-vars": "off",
+      "no-console": "off",
+    },
+  },
+];
