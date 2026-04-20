@@ -6,6 +6,18 @@ export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole("ADMIN"));
 
+adminRouter.get("/teachers", async (_req, res, next) => {
+  try {
+    const teachers = await prisma.teacher.findMany({
+      select: { id: true, email: true, phone: true, name: true, role: true },
+      orderBy: { name: "asc" },
+    });
+    res.json({ teachers });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Aggregate: leads per teacher, with conversion counts.
 adminRouter.get("/analytics/leads-per-teacher", async (_req, res, next) => {
   try {
@@ -31,15 +43,17 @@ adminRouter.get("/analytics/leads-per-teacher", async (_req, res, next) => {
     const rows = teachers.map((t) => {
       const c = byTeacher.get(t.id) ?? { total: 0, enrolled: 0, interested: 0 };
       return {
-        teacher: t,
+        teacherId: t.id,
+        teacherName: t.name,
+        teacherEmail: t.email,
         totalLeads: c.total,
-        enrolled: c.enrolled,
-        interested: c.interested,
+        enrolledLeads: c.enrolled,
+        interestedLeads: c.interested,
         conversionRate: c.total > 0 ? c.enrolled / c.total : 0,
       };
     });
 
-    res.json({ rows });
+    res.json({ teachers: rows });
   } catch (err) {
     next(err);
   }
@@ -68,10 +82,10 @@ adminRouter.get("/analytics/overview", async (_req, res, next) => {
     }
     const timeseries = Array.from(byDay.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, count]) => ({ date, count }));
+      .map(([day, count]) => ({ day, count }));
 
     res.json({
-      byClass: byClass.map((r) => ({ studentClass: r.studentClass, count: r._count._all })),
+      byClass: byClass.map((r) => ({ studentClass: r.studentClass, total: r._count._all })),
       timeseries,
     });
   } catch (err) {
